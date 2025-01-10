@@ -1,6 +1,7 @@
 import pygame
 import sys
 import math
+import random
 
 # Khởi tạo Pygame
 pygame.init()
@@ -8,19 +9,22 @@ pygame.init()
 # Kích thước cửa sổ trò chơi
 WIDTH, HEIGHT = 800, 600
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
-pygame.display.set_caption("TRÒ CHƠI VỚI HÌNH TRÒN CỐ ĐỊNH")
+pygame.display.set_caption("TRÒ CHƠI NHIỀU HÌNH TRÒN")
 
 # Màu sắc
 WHITE = (255, 255, 255)
-RED = (255, 0, 0)
-BLUE = (0, 0, 255)
-GREEN = (0, 255, 0)
 BLACK = (0, 0, 0)
+COLORS = [(255, 0, 0), (0, 0, 255), (0, 255, 0), (255, 255, 0), (255, 165, 0)]
 
 # Font chữ
 FONT = pygame.font.SysFont("Arial", 30)
 
-# Định nghĩa lớp Circle
+# Định nghĩa các trạng thái màn hình
+MENU = "menu"
+INTRO = "intro"
+MAIN = "main"
+
+# Lớp Circle
 class Circle:
     def __init__(self, x, y, radius, color, velocity):
         self.x = x
@@ -42,32 +46,7 @@ class Circle:
     def draw(self, surface):
         pygame.draw.circle(surface, self.color, (int(self.x), int(self.y)), self.radius)
 
-# Định nghĩa lớp Triangle
-class Triangle:
-    def __init__(self, points, color, velocity):
-        self.points = points
-        self.color = color
-        self.vx, self.vy = velocity
-
-    def move(self):
-        # Di chuyển tam giác theo vận tốc
-        self.points = [(x + self.vx, y + self.vy) for (x, y) in self.points]
-
-        # Kiểm tra va chạm với các cạnh cửa sổ và phản xạ
-        min_x = min([p[0] for p in self.points])
-        max_x = max([p[0] for p in self.points])
-        min_y = min([p[1] for p in self.points])
-        max_y = max([p[1] for p in self.points])
-
-        if min_x <= 0 or max_x >= WIDTH:
-            self.vx *= -1
-        if min_y <= 0 or max_y >= HEIGHT:
-            self.vy *= -1
-
-    def draw(self, surface):
-        pygame.draw.polygon(surface, self.color, self.points)
-
-# Hàm xử lý va chạm giữa đối tượng di chuyển và hình tròn cố định
+# Hàm xử lý va chạm giữa hình tròn di chuyển và hình tròn cố định
 def resolve_fixed_circle_collision(moving_circle, fixed_circle):
     dx = moving_circle.x - fixed_circle.x
     dy = moving_circle.y - fixed_circle.y
@@ -92,39 +71,59 @@ def resolve_fixed_circle_collision(moving_circle, fixed_circle):
         moving_circle.vx -= 2 * dot_product * nx
         moving_circle.vy -= 2 * dot_product * ny
 
-# Hàm xử lý va chạm giữa tam giác và hình tròn cố định
-def resolve_triangle_circle_collision(triangle, fixed_circle):
-    for point in triangle.points:  # Lặp qua các đỉnh của tam giác
-        dx = point[0] - fixed_circle.x
-        dy = point[1] - fixed_circle.y
-        dist = math.hypot(dx, dy)
+# Hàm vẽ Menu
+def draw_menu():
+    screen.fill(WHITE)
+    title_text = FONT.render("Chào Mừng Đến Với Trò Chơi!", True, BLACK)
+    start_text = FONT.render("Nhấn ENTER để Bắt Đầu", True, BLACK)
+    quit_text = FONT.render("Nhấn ESC để Thoát", True, BLACK)
 
-        if dist <= fixed_circle.radius:  # Kiểm tra va chạm
-            # Vector đơn vị hướng từ tâm hình tròn đến đỉnh tam giác
-            nx = dx / dist
-            ny = dy / dist
+    screen.blit(title_text, (WIDTH // 2 - title_text.get_width() // 2, HEIGHT // 3))
+    screen.blit(start_text, (WIDTH // 2 - start_text.get_width() // 2, HEIGHT // 2))
+    screen.blit(quit_text, (WIDTH // 2 - quit_text.get_width() // 2, HEIGHT // 2 + 40))
 
-            # Đẩy tam giác ra khỏi hình tròn
-            overlap = fixed_circle.radius - dist
-            triangle.points = [
-                (x + nx * overlap, y + ny * overlap) if (x, y) == point else (x, y)
-                for x, y in triangle.points
-            ]
+# Hàm vẽ Intro
+def draw_intro():
+    screen.fill(WHITE)
+    intro_lines = [
+        "Đây là phần giới thiệu về trò chơi.",
+        "Bạn sẽ điều khiển một màn chơi có nhiều hình tròn.",
+        "Chúng di chuyển và va chạm với nhau.",
+        "Nhấn ENTER để Bắt Đầu Chơi hoặc ESC để Quay Lại Menu."
+    ]
+    for idx, line in enumerate(intro_lines):
+        intro_text = FONT.render(line, True, BLACK)
+        screen.blit(intro_text, (50, 100 + idx * 40))
 
-            # Phản xạ vận tốc của tam giác
-            dot_product = triangle.vx * nx + triangle.vy * ny
-            triangle.vx -= 2 * dot_product * nx
-            triangle.vy -= 2 * dot_product * ny
+# Hàm vẽ Main Screen
+def draw_main(fixed_circles, moving_circles):
+    screen.fill(WHITE)
+    for circle in fixed_circles:
+        circle.draw(screen)
+    for circle in moving_circles:
+        circle.draw(screen)
 
 # Tạo các đối tượng
-fixed_circle1 = Circle(x=50, y=HEIGHT - 50, radius=40, color=RED, velocity=(0, 0))  # Góc trái dưới
-fixed_circle2 = Circle(x=WIDTH - 50, y=50, radius=40, color=BLUE, velocity=(0, 0))  # Góc phải trên
-moving_circle = Circle(x=400, y=300, radius=30, color=GREEN, velocity=(3, 3))  # Hình tròn di chuyển
-triangle = Triangle(points=[(300, 200), (350, 250), (250, 250)], color=BLACK, velocity=(2, 2))
+fixed_circle1 = Circle(x=50, y=HEIGHT - 50, radius=40, color=COLORS[0], velocity=(0, 0))
+fixed_circle2 = Circle(x=WIDTH - 50, y=50, radius=40, color=COLORS[1], velocity=(0, 0))
+
+moving_circles = [
+    Circle(
+        x=random.randint(100, WIDTH - 100),
+        y=random.randint(100, HEIGHT - 100),
+        radius=random.randint(20, 40),
+        color=random.choice(COLORS),
+        velocity=(random.randint(-3, 3), random.randint(-3, 3))
+    )
+    for _ in range(8)  # 8 hình tròn di chuyển
+]
 
 # Tốc độ khung hình
 clock = pygame.time.Clock()
 FPS = 60
+
+# Trạng thái hiện tại
+current_state = MENU
 
 # Vòng lặp chính của trò chơi
 running = True
@@ -133,23 +132,35 @@ while running:
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             running = False
+        elif event.type == pygame.KEYDOWN:
+            if current_state == MENU:
+                if event.key == pygame.K_RETURN:
+                    current_state = INTRO
+                elif event.key == pygame.K_ESCAPE:
+                    running = False
+            elif current_state == INTRO:
+                if event.key == pygame.K_RETURN:
+                    current_state = MAIN
+                elif event.key == pygame.K_ESCAPE:
+                    current_state = MENU
+            elif current_state == MAIN:
+                if event.key == pygame.K_ESCAPE:
+                    current_state = MENU
 
-    # Di chuyển các đối tượng
-    moving_circle.move()
-    triangle.move()
+    # Xử lý theo trạng thái hiện tại
+    if current_state == MENU:
+        draw_menu()
+    elif current_state == INTRO:
+        draw_intro()
+    elif current_state == MAIN:
+        # Di chuyển các hình tròn
+        for circle in moving_circles:
+            circle.move()
+            resolve_fixed_circle_collision(circle, fixed_circle1)
+            resolve_fixed_circle_collision(circle, fixed_circle2)
 
-    # Xử lý va chạm
-    resolve_fixed_circle_collision(moving_circle, fixed_circle1)
-    resolve_fixed_circle_collision(moving_circle, fixed_circle2)
-    resolve_triangle_circle_collision(triangle, fixed_circle1)
-    resolve_triangle_circle_collision(triangle, fixed_circle2)
-
-    # Vẽ tất cả đối tượng
-    screen.fill(WHITE)
-    fixed_circle1.draw(screen)
-    fixed_circle2.draw(screen)
-    moving_circle.draw(screen)
-    triangle.draw(screen)
+        # Vẽ màn hình chính
+        draw_main([fixed_circle1, fixed_circle2], moving_circles)
 
     # Cập nhật màn hình
     pygame.display.flip()
