@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Many Circles Game</title>
+    <style>
+      canvas {
+        display: block;
+        margin: 0 auto;
+        background: white;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <script>
+      // Lấy canvas và ngữ cảnh vẽ
+      const canvas = document.getElementById("gameCanvas");
+      const ctx = canvas.getContext("2d");
+
+      // Kích thước canvas
+      const WIDTH = canvas.width;
+      const HEIGHT = canvas.height;
+
+      // Màu sắc
+      const COLORS = ["red", "blue", "green", "yellow", "orange"];
+
+      // Trạng thái trò chơi
+      const MENU = "menu";
+      const INTRO = "intro";
+      const MAIN = "main";
+      let currentState = MENU;
+
+      // Lớp Circle
+      class Circle {
+        constructor(x, y, radius, color, velocity) {
+          this.x = x;
+          this.y = y;
+          this.radius = radius;
+          this.color = color;
+          this.vx = velocity.vx;
+          this.vy = velocity.vy;
+        }
+
+        move() {
+          this.x += this.vx;
+          this.y += this.vy;
+
+          // Va chạm với tường
+          if (this.x - this.radius <= 0 || this.x + this.radius >= WIDTH) {
+            this.vx *= -1;
+          }
+          if (this.y - this.radius <= 0 || this.y + this.radius >= HEIGHT) {
+            this.vy *= -1;
+          }
+        }
+
+        draw(ctx) {
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+          ctx.fillStyle = this.color;
+          ctx.fill();
+          ctx.closePath();
+        }
+      }
+
+      // Hàm xử lý va chạm giữa hình tròn di chuyển và hình tròn cố định
+      function resolveFixedCircleCollision(movingCircle, fixedCircle) {
+        const dx = movingCircle.x - fixedCircle.x;
+        const dy = movingCircle.y - fixedCircle.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+
+        if (dist === 0) return;
+
+        const overlap = movingCircle.radius + fixedCircle.radius - dist;
+        if (overlap > 0) {
+          const nx = dx / dist;
+          const ny = dy / dist;
+
+          movingCircle.x += nx * overlap;
+          movingCircle.y += ny * overlap;
+
+          const dotProduct = movingCircle.vx * nx + movingCircle.vy * ny;
+          movingCircle.vx -= 2 * dotProduct * nx;
+          movingCircle.vy -= 2 * dotProduct * ny;
+        }
+      }
+
+      // Tạo các hình tròn cố định
+      const fixedCircles = [
+        new Circle(50, HEIGHT - 50, 40, "red", { vx: 0, vy: 0 }),
+        new Circle(WIDTH - 50, 50, 40, "blue", { vx: 0, vy: 0 }),
+      ];
+
+      // Tạo các hình tròn di chuyển
+      const movingCircles = Array.from({ length: 8 }, () => {
+        return new Circle(
+          Math.random() * (WIDTH - 200) + 100,
+          Math.random() * (HEIGHT - 200) + 100,
+          Math.random() * 20 + 20,
+          COLORS[Math.floor(Math.random() * COLORS.length)],
+          { vx: Math.random() * 4 - 2, vy: Math.random() * 4 - 2 }
+        );
+      });
+
+      // Hàm vẽ menu
+      function drawMenu() {
+        ctx.clearRect(0, 0, WIDTH, HEIGHT);
+        ctx.fillStyle = "black";
+        ctx.font = "30px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText("Welcome to Many Circles Game", WIDTH / 2, HEIGHT / 3);
+        ctx.fillText("Press ENTER to Start", WIDTH / 2, HEIGHT / 2);
+        ctx.fillText("Press ESC to Quit", WIDTH / 2, HEIGHT / 2 + 40);
+      }
+
+      // Hàm vẽ intro
+      function drawIntro() {
+        ctx.clearRect(0, 0, WIDTH, HEIGHT);
+        const introLines = [
+          "This is a game of many circles.",
+          "You will see moving circles colliding.",
+          "Press ENTER to start the game.",
+          "Press ESC to return to the menu.",
+        ];
+        ctx.fillStyle = "black";
+        ctx.font = "20px Arial";
+        ctx.textAlign = "left";
+        introLines.forEach((line, idx) => {
+          ctx.fillText(line, 50, 100 + idx * 40);
+        });
+      }
+
+      // Hàm vẽ màn hình chính
+      function drawMain() {
+        ctx.clearRect(0, 0, WIDTH, HEIGHT);
+
+        // Vẽ các hình tròn cố định
+        fixedCircles.forEach((circle) => circle.draw(ctx));
+
+        // Vẽ và di chuyển các hình tròn di chuyển
+        movingCircles.forEach((circle) => {
+          circle.move();
+          fixedCircles.forEach((fixedCircle) => {
+            resolveFixedCircleCollision(circle, fixedCircle);
+          });
+          circle.draw(ctx);
+        });
+      }
+
+      // Hàm xử lý trạng thái trò chơi
+      function update() {
+        if (currentState === MENU) {
+          drawMenu();
+        } else if (currentState === INTRO) {
+          drawIntro();
+        } else if (currentState === MAIN) {
+          drawMain();
+        }
+        requestAnimationFrame(update);
+      }
+
+      // Lắng nghe sự kiện bàn phím
+      document.addEventListener("keydown", (e) => {
+        if (currentState === MENU) {
+          if (e.key === "Enter") {
+            currentState = INTRO;
+          } else if (e.key === "Escape") {
+            currentState = MENU;
+          }
+        } else if (currentState === INTRO) {
+          if (e.key === "Enter") {
+            currentState = MAIN;
+          } else if (e.key === "Escape") {
+            currentState = MENU;
+          }
+        } else if (currentState === MAIN) {
+          if (e.key === "Escape") {
+            currentState = MENU;
+          }
+        }
+      });
+
+      // Bắt đầu trò chơi
+      update();
+    </script>
+  </body>
+</html>
