@@ -3,187 +3,464 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Many Circles Game</title>
+    <title>Rocket Solar Game</title>
     <style>
       canvas {
         display: block;
         margin: 0 auto;
-        background: white;
+        background: #333;
       }
     </style>
   </head>
   <body>
     <canvas id="gameCanvas" width="800" height="600"></canvas>
     <script>
-      // Lấy canvas và ngữ cảnh vẽ
       const canvas = document.getElementById("gameCanvas");
       const ctx = canvas.getContext("2d");
 
-      // Kích thước canvas
       const WIDTH = canvas.width;
       const HEIGHT = canvas.height;
 
-      // Màu sắc
-      const COLORS = ["red", "blue", "green", "yellow", "orange"];
+      let score = 0;
 
-      // Trạng thái trò chơi
-      const MENU = "menu";
-      const INTRO = "intro";
-      const MAIN = "main";
-      let currentState = MENU;
+      // Hình ảnh nền
+      const backgroundImage = new Image();
+      backgroundImage.src = "https://i.postimg.cc/BQtb5jd4/back.png"; // URL của hình nền
 
-      // Lớp Circle
-      class Circle {
-        constructor(x, y, radius, color, velocity) {
-          this.x = x;
-          this.y = y;
-          this.radius = radius;
-          this.color = color;
-          this.vx = velocity.vx;
-          this.vy = velocity.vy;
-        }
+      // Hình ảnh Trái Đất và Sao Hỏa
+      const earthImage = new Image();
+      earthImage.src =
+        "https://i.postimg.cc/vHdpQfXm/Pngtree-earth-globe-vector-design-19771842.png";
 
+      const marsImage = new Image();
+      marsImage.src =
+        "https://i.postimg.cc/MTCgfQSd/Pngtree-night-sky-planet-mars-universe-4523018.png";
+
+      const earth = {
+        x: 150,
+        y: HEIGHT - 150,
+        radius: 120,
+        draw() {
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+          ctx.closePath();
+          ctx.clip();
+          ctx.drawImage(
+            earthImage,
+            this.x - this.radius,
+            this.y - this.radius,
+            this.radius * 2,
+            this.radius * 2
+          );
+          ctx.restore();
+        },
+        // Trái Đất đứng yên nên không có phương thức move
+      };
+
+      const mars = {
+        x: WIDTH - 150,
+        y: 150,
+        radius: 80,
+        vx: 0.5,
+        vy: 0.3,
+        colorOverlay: { r: 255, g: 0, b: 0, alpha: 0 }, // Lớp phủ màu ban đầu
+
+        draw() {
+          ctx.save();
+
+          // Vẽ hình ảnh Sao Hỏa
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+          ctx.closePath();
+          ctx.clip();
+          ctx.drawImage(
+            marsImage,
+            this.x - this.radius,
+            this.y - this.radius,
+            this.radius * 2,
+            this.radius * 2
+          );
+
+          // Thêm lớp phủ màu (hiệu ứng đổi màu) chỉ trong phạm vi Sao Hỏa
+          if (this.colorOverlay.alpha > 0) {
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2); // Lớp phủ tròn khớp Sao Hỏa
+            ctx.closePath();
+            ctx.globalCompositeOperation = "source-atop"; // Chỉ áp dụng trong vùng Sao Hỏa
+            ctx.fillStyle = `rgba(${this.colorOverlay.r}, ${this.colorOverlay.g}, ${this.colorOverlay.b}, ${this.colorOverlay.alpha})`;
+            ctx.fill();
+          }
+
+          ctx.restore();
+        },
         move() {
+          // Di chuyển Sao Hỏa
           this.x += this.vx;
           this.y += this.vy;
 
-          // Va chạm với tường
-          if (this.x - this.radius <= 0 || this.x + this.radius >= WIDTH) {
+          // Đảo chiều nếu chạm biên
+          if (this.x + this.radius >= WIDTH || this.x - this.radius <= 0) {
             this.vx *= -1;
           }
-          if (this.y - this.radius <= 0 || this.y + this.radius >= HEIGHT) {
+
+          if (this.y + this.radius >= HEIGHT || this.y - this.radius <= 0) {
             this.vy *= -1;
           }
+
+          // Kiểm tra va chạm với Trái Đất
+          const dx = this.x - earth.x;
+          const dy = this.y - earth.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+
+          if (distance < this.radius + earth.radius) {
+            // Tính góc va chạm
+            const angle = Math.atan2(dy, dx);
+
+            // Đẩy Sao Hỏa ra ngoài để tránh chồng lặp
+            const overlap = this.radius + earth.radius - distance;
+            this.x += Math.cos(angle) * overlap;
+            this.y += Math.sin(angle) * overlap;
+
+            // Tính vận tốc phản xạ
+            const dot = this.vx * Math.cos(angle) + this.vy * Math.sin(angle);
+            this.vx = this.vx - 2 * dot * Math.cos(angle);
+            this.vy = this.vy - 2 * dot * Math.sin(angle);
+
+            // Đảm bảo vận tốc không trở về 0 để tránh "chết"
+            const minSpeed = 0.5;
+            if (Math.abs(this.vx) < minSpeed)
+              this.vx = minSpeed * Math.sign(this.vx);
+            if (Math.abs(this.vy) < minSpeed)
+              this.vy = minSpeed * Math.sign(this.vy);
+          }
+        },
+        changeColor() {
+          // Tăng độ trong suốt của lớp phủ màu
+          this.colorOverlay.alpha = Math.min(1, this.colorOverlay.alpha + 0.2);
+
+          // Chuyển dần lớp phủ từ đỏ sang xanh lá cây
+          if (this.colorOverlay.r > 0) this.colorOverlay.r -= 50;
+          if (this.colorOverlay.g < 255) this.colorOverlay.g += 50;
+          this.colorOverlay.r = Math.max(0, this.colorOverlay.r);
+          this.colorOverlay.g = Math.min(255, this.colorOverlay.g);
+
+          // Giảm dần lớp phủ theo thời gian
+          setTimeout(() => {
+            this.colorOverlay.alpha = Math.max(
+              0,
+              this.colorOverlay.alpha - 0.05
+            );
+          }, 100);
+        },
+      };
+
+      class Explosion {
+        constructor(x, y) {
+          this.x = x;
+          this.y = y;
+          this.radius = 5;
+          this.maxRadius = 30;
+          this.opacity = 1;
+        }
+
+        draw() {
+          ctx.save();
+          ctx.globalAlpha = this.opacity;
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+          ctx.fillStyle = "orange";
+          ctx.fill();
+          ctx.restore();
+        }
+
+        update() {
+          this.radius += 2;
+          this.opacity -= 0.05;
+        }
+
+        isFinished() {
+          return this.opacity <= 0;
+        }
+      }
+
+      class Rocket {
+        constructor(x, y, directionX, directionY) {
+          this.x = x;
+          this.y = y;
+          this.directionX = directionX;
+          this.directionY = directionY;
+          this.baseSpeed = 1; // Tốc độ cơ bản giảm
+          this.width = 10;
+          this.height = 20;
+
+          // Velocity components
+          this.vx = this.directionX * this.baseSpeed;
+          this.vy = this.directionY * this.baseSpeed;
+        }
+
+        calculateSpeed() {
+          const dx = this.x - earth.x;
+          const dy = this.y - earth.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+
+          const minSpeed = 0.3; // Tốc độ tối thiểu
+          const maxDistance = 800; // Khoảng cách tối đa giảm tốc
+          return Math.max(
+            minSpeed,
+            this.baseSpeed * (1 - distance / maxDistance)
+          );
+        }
+
+        move() {
+          const speed = this.calculateSpeed();
+          this.vx = this.directionX * speed * 0.8; // Giảm vận tốc mỗi khung hình
+          this.vy = this.directionY * speed * 0.8;
+
+          this.x += this.vx;
+          this.y += this.vy;
         }
 
         draw(ctx) {
+          // Tính góc xoay dựa trên vector hướng (vx, vy)
+          const angle = Math.atan2(this.vy, this.vx);
+
+          ctx.save();
+          ctx.translate(this.x, this.y);
+          ctx.rotate(angle);
+
+          // **Thân tên lửa**
+          ctx.fillStyle = "white";
+          ctx.fillRect(0, -this.height / 2, this.width, this.height); // Thân chính
+
+          // **Đầu tên lửa**
           ctx.beginPath();
-          ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-          ctx.fillStyle = this.color;
+          ctx.moveTo(this.width, -this.height / 2); // Đỉnh tam giác
+          ctx.lineTo(this.width, this.height / 2); // Góc dưới phải
+          ctx.lineTo(this.width + this.width / 2, 0); // Mũi nhọn
+          ctx.closePath();
+          ctx.fillStyle = "red";
           ctx.fill();
+
+          // **Cửa sổ trên thân tên lửa**
+          ctx.fillStyle = "blue";
+          ctx.beginPath();
+          ctx.arc(this.width / 2, 0, this.height / 8, 0, Math.PI * 2); // Vẽ hình tròn
+          ctx.fill();
+
+          // **Ngọn lửa từ động cơ**
+          const flameGradient = ctx.createLinearGradient(
+            -this.width / 2,
+            0,
+            -this.width * 2,
+            0
+          );
+          flameGradient.addColorStop(0, "yellow");
+          flameGradient.addColorStop(0.5, "orange");
+          flameGradient.addColorStop(1, "red");
+
+          ctx.fillStyle = flameGradient;
+          ctx.beginPath();
+          ctx.moveTo(-this.width / 2, -this.height / 4); // Điểm trên ngọn lửa
+          ctx.lineTo(-this.width * 2, 0); // Đỉnh ngoài
+          ctx.lineTo(-this.width / 2, this.height / 4); // Điểm dưới ngọn lửa
+          ctx.closePath();
+          ctx.fill();
+
+          // **Cánh tên lửa**
+          ctx.fillStyle = "gray";
+
+          // Cánh trái
+          ctx.beginPath();
+          ctx.moveTo(0, -this.height / 2); // Gốc trên
+          ctx.lineTo(-this.width / 2, -this.height / 4); // Điểm ngoài cánh trái trên
+          ctx.lineTo(0, 0); // Gốc trung tâm
+          ctx.closePath();
+          ctx.fill();
+
+          // Cánh phải
+          ctx.beginPath();
+          ctx.moveTo(0, this.height / 2); // Gốc dưới
+          ctx.lineTo(-this.width / 2, this.height / 4); // Điểm ngoài cánh trái dưới
+          ctx.lineTo(0, 0); // Gốc trung tâm
+          ctx.closePath();
+          ctx.fill();
+
+          ctx.restore();
+        }
+
+        hasReachedTarget() {
+          if (
+            this.x < -this.width ||
+            this.x > WIDTH + this.width ||
+            this.y < -this.height ||
+            this.y > HEIGHT + this.height
+          ) {
+            return true;
+          }
+
+          const dx = this.x - mars.x;
+          const dy = this.y - mars.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+
+          return distance < mars.radius;
+        }
+      }
+
+      const rockets = [];
+
+      function drawScore() {
+        ctx.fillStyle = "white";
+        ctx.font = "20px Arial";
+        ctx.fillText(`Score: ${score}`, 10, 30);
+      }
+
+      // Hàm vẽ đường định hướng
+      function drawDragLine() {
+        if (dragStart && dragEnd) {
+          ctx.beginPath();
+          ctx.moveTo(dragStart.x, dragStart.y);
+          ctx.lineTo(dragEnd.x, dragEnd.y);
+          ctx.strokeStyle = "red";
+          ctx.lineWidth = 2;
+          ctx.stroke();
           ctx.closePath();
         }
       }
 
-      // Hàm xử lý va chạm giữa hình tròn di chuyển và hình tròn cố định
-      function resolveFixedCircleCollision(movingCircle, fixedCircle) {
-        const dx = movingCircle.x - fixedCircle.x;
-        const dy = movingCircle.y - fixedCircle.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
+      // Cờ và vị trí kéo
+      let isDragging = false;
+      let dragStart = null; // Vị trí bắt đầu
+      let dragEnd = null; // Vị trí kết thúc
 
-        if (dist === 0) return;
-
-        const overlap = movingCircle.radius + fixedCircle.radius - dist;
-        if (overlap > 0) {
-          const nx = dx / dist;
-          const ny = dy / dist;
-
-          movingCircle.x += nx * overlap;
-          movingCircle.y += ny * overlap;
-
-          const dotProduct = movingCircle.vx * nx + movingCircle.vy * ny;
-          movingCircle.vx -= 2 * dotProduct * nx;
-          movingCircle.vy -= 2 * dotProduct * ny;
-        }
-      }
-
-      // Tạo các hình tròn cố định
-      const fixedCircles = [
-        new Circle(50, HEIGHT - 50, 40, "red", { vx: 0, vy: 0 }),
-        new Circle(WIDTH - 50, 50, 40, "blue", { vx: 0, vy: 0 }),
-      ];
-
-      // Tạo các hình tròn di chuyển
-      const movingCircles = Array.from({ length: 8 }, () => {
-        return new Circle(
-          Math.random() * (WIDTH - 200) + 100,
-          Math.random() * (HEIGHT - 200) + 100,
-          Math.random() * 20 + 20,
-          COLORS[Math.floor(Math.random() * COLORS.length)],
-          { vx: Math.random() * 4 - 2, vy: Math.random() * 4 - 2 }
-        );
-      });
-
-      // Hàm vẽ menu
-      function drawMenu() {
-        ctx.clearRect(0, 0, WIDTH, HEIGHT);
-        ctx.fillStyle = "black";
-        ctx.font = "30px Arial";
-        ctx.textAlign = "center";
-        ctx.fillText("Welcome to Many Circles Game", WIDTH / 2, HEIGHT / 3);
-        ctx.fillText("Press ENTER to Start", WIDTH / 2, HEIGHT / 2);
-        ctx.fillText("Press ESC to Quit", WIDTH / 2, HEIGHT / 2 + 40);
-      }
-
-      // Hàm vẽ intro
-      function drawIntro() {
-        ctx.clearRect(0, 0, WIDTH, HEIGHT);
-        const introLines = [
-          "This is a game of many circles.",
-          "You will see moving circles colliding.",
-          "Press ENTER to start the game.",
-          "Press ESC to return to the menu.",
-        ];
-        ctx.fillStyle = "black";
-        ctx.font = "20px Arial";
-        ctx.textAlign = "left";
-        introLines.forEach((line, idx) => {
-          ctx.fillText(line, 50, 100 + idx * 40);
-        });
-      }
-
-      // Hàm vẽ màn hình chính
+      // Hàm cập nhật và vẽ màn hình chính
       function drawMain() {
         ctx.clearRect(0, 0, WIDTH, HEIGHT);
 
-        // Vẽ các hình tròn cố định
-        fixedCircles.forEach((circle) => circle.draw(ctx));
+        // Vẽ nền
+        ctx.drawImage(backgroundImage, 0, 0, WIDTH, HEIGHT);
 
-        // Vẽ và di chuyển các hình tròn di chuyển
-        movingCircles.forEach((circle) => {
-          circle.move();
-          fixedCircles.forEach((fixedCircle) => {
-            resolveFixedCircleCollision(circle, fixedCircle);
-          });
-          circle.draw(ctx);
+        // Di chuyển và vẽ Sao Hỏa
+        mars.move();
+        mars.draw();
+
+        // Vẽ Trái Đất
+        earth.draw();
+
+        // Vẽ điểm số
+        drawScore();
+
+        // Vẽ đường định hướng khi kéo chuột
+        drawDragLine();
+
+        // Di chuyển và vẽ tên lửa
+        rockets.forEach((rocket, index) => {
+          rocket.move();
+          rocket.draw(ctx);
+
+          if (rocket.hasReachedTarget()) {
+            rockets.splice(index, 1);
+
+            // Kiểm tra nếu tên lửa chạm vào Sao Hỏa
+            const dx = rocket.x - mars.x;
+            const dy = rocket.y - mars.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            if (distance < mars.radius) {
+              score += 1;
+              mars.changeColor(); // Đổi màu Sao Hỏa
+            }
+          }
         });
       }
 
-      // Hàm xử lý trạng thái trò chơi
-      function update() {
-        if (currentState === MENU) {
-          drawMenu();
-        } else if (currentState === INTRO) {
-          drawIntro();
-        } else if (currentState === MAIN) {
-          drawMain();
-        }
-        requestAnimationFrame(update);
-      }
+      // Sự kiện chuột
+      canvas.addEventListener("mousedown", (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
 
-      // Lắng nghe sự kiện bàn phím
-      document.addEventListener("keydown", (e) => {
-        if (currentState === MENU) {
-          if (e.key === "Enter") {
-            currentState = INTRO;
-          } else if (e.key === "Escape") {
-            currentState = MENU;
-          }
-        } else if (currentState === INTRO) {
-          if (e.key === "Enter") {
-            currentState = MAIN;
-          } else if (e.key === "Escape") {
-            currentState = MENU;
-          }
-        } else if (currentState === MAIN) {
-          if (e.key === "Escape") {
-            currentState = MENU;
-          }
+        const dist = Math.sqrt(
+          (mouseX - earth.x) ** 2 + (mouseY - earth.y) ** 2
+        );
+
+        if (dist <= earth.radius) {
+          isDragging = true;
+          dragStart = { x: earth.x, y: earth.y };
+          dragEnd = { x: mouseX, y: mouseY };
         }
       });
 
-      // Bắt đầu trò chơi
-      update();
+      canvas.addEventListener("mousemove", (e) => {
+        if (isDragging) {
+          const rect = canvas.getBoundingClientRect();
+          const mouseX = e.clientX - rect.left;
+          const mouseY = e.clientY - rect.top;
+
+          dragEnd = { x: mouseX, y: mouseY };
+        }
+      });
+
+      canvas.addEventListener("mouseup", () => {
+        if (isDragging && dragEnd) {
+          // Tính vector hướng ngược lại từ dragStart đến dragEnd
+          const dx = dragStart.x - dragEnd.x;
+          const dy = dragStart.y - dragEnd.y;
+
+          const dist = Math.sqrt(dx * dx + dy * dy);
+
+          if (dist > 5) {
+            // Chỉ tạo tên lửa nếu kéo đủ xa
+            const normalizedDirectionX = dx / dist;
+            const normalizedDirectionY = dy / dist;
+
+            rockets.push(
+              new Rocket(
+                earth.x,
+                earth.y,
+                normalizedDirectionX,
+                normalizedDirectionY
+              )
+            );
+          }
+
+          // Reset trạng thái kéo
+          isDragging = false;
+          dragStart = null;
+          dragEnd = null;
+        }
+      });
+
+      // Hàm cập nhật trò chơi
+      function update() {
+        drawMain();
+        requestAnimationFrame(update);
+      }
+
+      // Chỉ bắt đầu vòng lặp khi tất cả hình ảnh đã tải
+      let imagesLoaded = 0;
+      const totalImages = 3; // backgroundImage, earthImage, marsImage
+
+      backgroundImage.onload = () => {
+        imagesLoaded += 1;
+        if (imagesLoaded === totalImages) {
+          update();
+        }
+      };
+
+      earthImage.onload = () => {
+        imagesLoaded += 1;
+        if (imagesLoaded === totalImages) {
+          update();
+        }
+      };
+
+      marsImage.onload = () => {
+        imagesLoaded += 1;
+        if (imagesLoaded === totalImages) {
+          update();
+        }
+      };
     </script>
   </body>
 </html>
