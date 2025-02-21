@@ -104,6 +104,7 @@
     </div>
     <!-- Game Canvas -->
     <canvas id="gameCanvas"></canvas>
+    <button id="continueButton" style="display: none">Tiếp tục</button>
     <!-- Notifications -->
     <div class="notification" id="levelUpNotification">Bạn đã qua màn 1!</div>
     <div class="notification" id="gameOverNotification">
@@ -135,6 +136,13 @@
       const retryButton = document.getElementById("retryButton");
       const exitButton = document.getElementById("exitButton");
 
+      function resetGame() {
+        score = 0;
+        level = 1;
+        rocketsFired = 0; // Reset lại số tên lửa khi chơi lại
+        rockets.length = 0;
+        mars.colorOverlay = { r: 255, g: 0, b: 0, alpha: 0 }; // Reset lại màu sao Hỏa về trạng thái ban đầu
+      }
       // Hình ảnh game
       const backgroundImage = new Image();
       backgroundImage.src = "https://i.postimg.cc/BQtb5jd4/back.png";
@@ -394,18 +402,8 @@
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // Vẽ nền tùy theo cấp độ
-        if (level === 1) {
-          ctx.drawImage(backgroundImage, 0, 0, canvas.width, canvas.height);
-        } else if (level === 2) {
-          ctx.drawImage(
-            backgroundImageLevel2,
-            0,
-            0,
-            canvas.width,
-            canvas.height
-          );
-        }
+        // Vẽ nền luôn là backgroundImage (hình nền màn 1)
+        ctx.drawImage(backgroundImage, 0, 0, canvas.width, canvas.height);
 
         mars.move();
         mars.draw();
@@ -429,8 +427,9 @@
         });
 
         // Điều kiện để chuyển sang màn 2
-        if (score >= 10 && level === 1) {
+        if (score >= 7 && level === 1) {
           level = 2;
+          resetGame(); // Đảm bảo reset lại trạng thái game sau khi qua màn
           levelUpNotification.style.display = "block"; // Hiển thị thông báo khi qua màn
           setTimeout(() => {
             levelUpNotification.style.display = "none"; // Ẩn thông báo sau 3 giây
