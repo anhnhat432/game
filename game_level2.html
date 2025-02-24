@@ -119,6 +119,36 @@
       <button id="exitButtonLevel2">Thoát</button>
     </div>
     <script>
+      // Asteroid class
+      class Asteroid {
+        constructor(x, y, radius) {
+          this.x = x;
+          this.y = y;
+          this.radius = radius;
+          this.color = "gray";
+        }
+
+        draw(ctx) {
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+          ctx.fillStyle = this.color;
+          ctx.fill();
+          ctx.closePath();
+        }
+
+        checkCollision(rocket) {
+          const dx = this.x - rocket.x;
+          const dy = this.y - rocket.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          return distance < this.radius + rocket.width / 2; // Simple collision check
+        }
+
+        explode() {
+          this.color = "red"; // Change color on explosion
+        }
+      }
+
+      // Rocket class
       class Game {
         constructor(canvas, ctx) {
           this.canvas = canvas;
@@ -151,6 +181,15 @@
           };
           this.mars.image.src =
             "https://i.postimg.cc/MTCgfQSd/Pngtree-night-sky-planet-mars-universe-4523018.png";
+
+          // Create 5 asteroids
+          this.asteroids = [
+            new Asteroid(200, 300, 30),
+            new Asteroid(400, 500, 40),
+            new Asteroid(600, 700, 50),
+            new Asteroid(800, 200, 20),
+            new Asteroid(1000, 600, 35),
+          ];
         }
 
         resetGame() {
@@ -173,6 +212,9 @@
           this.drawEarth();
           this.drawMars();
 
+          // Draw and move asteroids
+          this.asteroids.forEach((asteroid) => asteroid.draw(this.ctx));
+
           // Logic game: Di chuyển tên lửa, kiểm tra va chạm, v.v.
           this.rockets.forEach((rocket, index) => {
             rocket.move();
@@ -187,6 +229,14 @@
                 this.mars.changeColor();
               }
             }
+
+            // Check for collision with asteroids
+            this.asteroids.forEach((asteroid) => {
+              if (asteroid.checkCollision(rocket)) {
+                asteroid.explode();
+                this.rockets.splice(index, 1); // Remove rocket on collision
+              }
+            });
           });
 
           // Kiểm tra điều kiện thắng màn
@@ -489,6 +539,7 @@
           ctx.fill();
           ctx.restore();
         }
+
         hasReachedTarget() {
           if (
             this.x < -this.width ||
@@ -542,7 +593,6 @@
       }
 
       // Hàm cập nhật chính – update() luôn chạy
-      // Hàm cập nhật chính – update() luôn chạy
       function update() {
         requestAnimationFrame(update);
         if (!gameRunning) return;
@@ -558,6 +608,9 @@
         drawScore();
         drawDragLine();
 
+        // Draw and check for collisions with asteroids
+        game.asteroids.forEach((asteroid) => asteroid.draw(ctx));
+
         rockets.forEach((rocket, index) => {
           rocket.move();
           rocket.draw(ctx);
@@ -571,6 +624,14 @@
               mars.changeColor();
             }
           }
+
+          // Check for collision with asteroids
+          game.asteroids.forEach((asteroid) => {
+            if (asteroid.checkCollision(rocket)) {
+              asteroid.explode();
+              rockets.splice(index, 1); // Remove rocket on collision
+            }
+          });
         });
 
         // Điều kiện để chuyển sang màn 2
@@ -663,8 +724,13 @@
       continueButton.addEventListener("click", () => {
         console.log("Nút Tiếp tục đã được nhấn!"); // Kiểm tra trong console
         continueLevelNotification.style.display = "none"; // Ẩn thông báo
-        gameRunning = false; // Dừng game hiện tại
-
+        gameRunning = true; // Dừng game hiện tại
+        game.level = 2;
+        game.score = 0;
+        game.rocketsFired = 0;
+        game.rockets = []; // Clear existing rockets
+        game.mars.colorOverlay = { r: 255, g: 0, b: 0, alpha: 0 }; // Reset Mars' color overlay
+        game.isGameRunning = true;
         // Chuyển đến trang game level 2
         window.location.href = "game_level2.html"; // Điều hướng đến màn 2
       });

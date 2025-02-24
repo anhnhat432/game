@@ -605,14 +605,6 @@
         mars.y = 150;
       }
 
-      function resetGame() {
-        score = 0;
-        level = 1;
-        rocketsFired = 0;
-        rockets.length = 0;
-        mars.colorOverlay = { r: 255, g: 0, b: 0, alpha: 0 };
-      }
-
       canvas.addEventListener("mousedown", (e) => {
         const rect = canvas.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
