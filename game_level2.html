@@ -10,6 +10,43 @@
         padding: 0;
         overflow: hidden;
       }
+      /* Start screen */
+      .start-screen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(to bottom right, #3fc0f0, #2fa5c0);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+      }
+      .start-screen h1 {
+        font-size: 50px;
+        color: #fff;
+        margin-bottom: 20px;
+      }
+      .start-screen p {
+        color: #fff;
+        margin-bottom: 40px;
+        text-align: center;
+      }
+      .start-button {
+        background-color: #ff9900;
+        color: #fff;
+        font-size: 24px;
+        padding: 15px 30px;
+        border: none;
+        border-radius: 5px;
+        cursor: pointer;
+        box-shadow: 0 5px 10px rgba(0, 0, 0, 0.3);
+      }
+      .start-button:hover {
+        background-color: #e68a00;
+      }
       /* Canvas */
       #gameCanvas {
         position: fixed;
@@ -18,6 +55,7 @@
         background: #333;
         width: 100vw;
         height: 100vh;
+        display: none;
       }
       /* Notifications */
       .notification {
@@ -35,61 +73,617 @@
         z-index: 9999;
         text-align: center;
       }
+      .game-over-buttons {
+        margin-top: 20px;
+      }
+      .game-over-buttons button {
+        margin: 0 10px;
+        padding: 10px 20px;
+        font-size: 18px;
+        cursor: pointer;
+        border: none;
+        border-radius: 5px;
+        background-color: #ff9900;
+        color: #fff;
+      }
+      .game-over-buttons button:hover {
+        background-color: #e68a00;
+      }
     </style>
   </head>
   <body>
-    <!-- Canvas game level 2 -->
-    <canvas id="gameCanvas"></canvas>
-
-    <!-- Màn hình thông báo -->
-    <div class="notification" id="level2Notification">
-      Bạn đã qua màn 2! Tiến hành thử thách mới!
+    <!-- Start Screen -->
+    <div class="start-screen" id="startScreen">
+      <h1>Game Level 2</h1>
+      <p>Chơi tiếp để khám phá thêm!</p>
+      <button class="start-button" id="startButton">Bắt đầu</button>
     </div>
-
+    <!-- Canvas -->
+    <canvas id="gameCanvas"></canvas>
+    <!-- Notifications -->
+    <div class="notification" id="levelUpNotification">Bạn đã qua màn 2!</div>
+    <div class="notification" id="gameOverNotification">
+      <p>Game Over!</p>
+      <div class="game-over-buttons">
+        <button id="retryButton">Chơi lại</button>
+        <button id="exitButton">Thoát</button>
+      </div>
+    </div>
+    <div
+      class="notification"
+      id="continueLevelNotification"
+      style="display: none"
+    >
+      <p>Bạn đã qua màn 2! Bạn có muốn tiếp tục qua màn 3 không?</p>
+      <button id="continueButton">Tiếp tục</button>
+      <button id="exitButtonLevel2">Thoát</button>
+    </div>
     <script>
-      // Biến và setup
+      class Game {
+        constructor(canvas, ctx) {
+          this.canvas = canvas;
+          this.ctx = ctx;
+          this.score = 0;
+          this.level = 1;
+          this.rocketsFired = 0;
+          this.maxRockets = 10;
+          this.rockets = [];
+          this.isGameRunning = false;
+
+          // Định nghĩa các đối tượng Earth, Mars và các đối tượng khác
+          this.earth = {
+            x: 150,
+            y: canvas.height - 150,
+            radius: 120,
+            image: new Image(),
+          };
+          this.earth.image.src =
+            "https://i.postimg.cc/vHdpQfXm/Pngtree-earth-globe-vector-design-19771842.png";
+
+          this.mars = {
+            x: canvas.width - 150,
+            y: 150,
+            radius: 80,
+            vx: 0.5,
+            vy: 0.3,
+            colorOverlay: { r: 255, g: 0, b: 0, alpha: 0 },
+            image: new Image(),
+          };
+          this.mars.image.src =
+            "https://i.postimg.cc/MTCgfQSd/Pngtree-night-sky-planet-mars-universe-4523018.png";
+        }
+
+        resetGame() {
+          this.score = 0;
+          this.level = 1;
+          this.rocketsFired = 0;
+          this.rockets = [];
+          this.mars.colorOverlay = { r: 255, g: 0, b: 0, alpha: 0 };
+        }
+
+        update() {
+          if (!this.isGameRunning) return;
+          this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+          // Vẽ nền
+          this.ctx.fillStyle = "#222"; // Hoặc vẽ hình nền khác
+          this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+          // Vẽ Earth và Mars
+          this.drawEarth();
+          this.drawMars();
+
+          // Logic game: Di chuyển tên lửa, kiểm tra va chạm, v.v.
+          this.rockets.forEach((rocket, index) => {
+            rocket.move();
+            rocket.draw(this.ctx);
+            if (rocket.hasReachedTarget()) {
+              this.rockets.splice(index, 1);
+              const dx = rocket.x - this.mars.x;
+              const dy = rocket.y - this.mars.y;
+              const distance = Math.sqrt(dx * dx + dy * dy);
+              if (distance < this.mars.radius) {
+                this.score += 1;
+                this.mars.changeColor();
+              }
+            }
+          });
+
+          // Kiểm tra điều kiện thắng màn
+          if (this.score >= 7 && this.level === 1) {
+            this.level = 2;
+            this.resetGame(); // Đảm bảo reset lại trạng thái game
+            levelUpNotification.style.display = "none"; // Ẩn thông báo qua màn
+            continueLevelNotification.style.display = "block"; // Hiển thị thông báo yêu cầu xác nhận tiếp tục
+          }
+        }
+
+        drawEarth() {
+          this.ctx.save();
+          this.ctx.beginPath();
+          this.ctx.arc(
+            this.earth.x,
+            this.earth.y,
+            this.earth.radius,
+            0,
+            Math.PI * 2
+          );
+          this.ctx.closePath();
+          this.ctx.clip();
+          this.ctx.drawImage(
+            this.earth.image,
+            this.earth.x - this.earth.radius,
+            this.earth.y - this.earth.radius,
+            this.earth.radius * 2,
+            this.earth.radius * 2
+          );
+          this.ctx.restore();
+        }
+
+        drawMars() {
+          this.ctx.save();
+          this.ctx.beginPath();
+          this.ctx.arc(
+            this.mars.x,
+            this.mars.y,
+            this.mars.radius,
+            0,
+            Math.PI * 2
+          );
+          this.ctx.closePath();
+          this.ctx.clip();
+          this.ctx.drawImage(
+            this.mars.image,
+            this.mars.x - this.mars.radius,
+            this.mars.y - this.mars.radius,
+            this.mars.radius * 2,
+            this.mars.radius * 2
+          );
+          if (this.mars.colorOverlay.alpha > 0) {
+            this.ctx.beginPath();
+            this.ctx.arc(
+              this.mars.x,
+              this.mars.y,
+              this.mars.radius,
+              0,
+              Math.PI * 2
+            );
+            this.ctx.closePath();
+            this.ctx.globalCompositeOperation = "source-atop";
+            this.ctx.fillStyle = `rgba(${this.mars.colorOverlay.r}, ${this.mars.colorOverlay.g}, ${this.mars.colorOverlay.b}, ${this.mars.colorOverlay.alpha})`;
+            this.ctx.fill();
+          }
+          this.ctx.restore();
+        }
+      }
+
+      const continueLevelNotification = document.getElementById(
+        "continueLevelNotification"
+      );
+      const continueButton = document.getElementById("continueButton");
+      const exitButtonLevel2 = document.getElementById("exitButtonLevel2");
+      // Biến toàn cục
+      let gameRunning = false; // Quản lý trạng thái game
       const canvas = document.getElementById("gameCanvas");
       const ctx = canvas.getContext("2d");
-      const level2Notification = document.getElementById("level2Notification");
+      const game = new Game(canvas, ctx);
+      let score = 0,
+        level = 1,
+        rocketsFired = 0;
+      const maxRockets = 10;
 
-      let level2Score = 0;
-      let gameRunning = false;
+      const levelUpNotification = document.getElementById(
+        "levelUpNotification"
+      );
+      const gameOverNotification = document.getElementById(
+        "gameOverNotification"
+      );
+      const startScreen = document.getElementById("startScreen");
+      const startButton = document.getElementById("startButton");
+      const retryButton = document.getElementById("retryButton");
+      const exitButton = document.getElementById("exitButton");
 
-      // Khởi tạo background hình ảnh mới cho màn 2
+      function resetGame() {
+        score = 0;
+        level = 1;
+        rocketsFired = 0; // Reset lại số tên lửa khi chơi lại
+        rockets.length = 0;
+        mars.colorOverlay = { r: 255, g: 0, b: 0, alpha: 0 }; // Reset lại màu sao Hỏa về trạng thái ban đầu
+      }
+      // Hình ảnh game
+      const backgroundImage = new Image();
+      backgroundImage.src = "https://i.postimg.cc/BQtb5jd4/back.png";
       const backgroundImageLevel2 = new Image();
-      backgroundImageLevel2.src = "https://i.postimg.cc/BQtb5jd4/back.png"; // Đường dẫn đến hình ảnh mới
+      backgroundImageLevel2.src = "https://i.postimg.cc/BQtb5jd4/back.png";
+      const earthImage = new Image();
+      earthImage.src =
+        "https://i.postimg.cc/vHdpQfXm/Pngtree-earth-globe-vector-design-19771842.png";
+      const marsImage = new Image();
+      marsImage.src =
+        "https://i.postimg.cc/MTCgfQSd/Pngtree-night-sky-planet-mars-universe-4523018.png";
 
-      // Cập nhật game level 2
-      function updateLevel2() {
-        requestAnimationFrame(updateLevel2);
+      // Đối tượng Earth và Mars
+      const earth = {
+        x: 150,
+        y: 0,
+        radius: 120,
+        draw() {
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+          ctx.closePath();
+          ctx.clip();
+          ctx.drawImage(
+            earthImage,
+            this.x - this.radius,
+            this.y - this.radius,
+            this.radius * 2,
+            this.radius * 2
+          );
+          ctx.restore();
+        },
+      };
+      const mars = {
+        x: 0,
+        y: 0,
+        radius: 80,
+        vx: 0.5,
+        vy: 0.3,
+        colorOverlay: { r: 255, g: 0, b: 0, alpha: 0 },
+        draw() {
+          ctx.save();
+          ctx.beginPath();
+          ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+          ctx.closePath();
+          ctx.clip();
+          ctx.drawImage(
+            marsImage,
+            this.x - this.radius,
+            this.y - this.radius,
+            this.radius * 2,
+            this.radius * 2
+          );
+          if (this.colorOverlay.alpha > 0) {
+            ctx.beginPath();
+            ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+            ctx.closePath();
+            ctx.globalCompositeOperation = "source-atop";
+            ctx.fillStyle = `rgba(${this.colorOverlay.r}, ${this.colorOverlay.g}, ${this.colorOverlay.b}, ${this.colorOverlay.alpha})`;
+            ctx.fill();
+          }
+          ctx.restore();
+        },
+        move() {
+          this.x += this.vx;
+          this.y += this.vy;
+          if (
+            this.x + this.radius >= canvas.width ||
+            this.x - this.radius <= 0
+          ) {
+            this.vx *= -1;
+          }
+          if (
+            this.y + this.radius >= canvas.height ||
+            this.y - this.radius <= 0
+          ) {
+            this.vy *= -1;
+          }
+          const dx = this.x - earth.x,
+            dy = this.y - earth.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          if (distance < this.radius + earth.radius) {
+            const angle = Math.atan2(dy, dx);
+            const overlap = this.radius + earth.radius - distance;
+            this.x += Math.cos(angle) * overlap;
+            this.y += Math.sin(angle) * overlap;
+            const dot = this.vx * Math.cos(angle) + this.vy * Math.sin(angle);
+            this.vx = this.vx - 2 * dot * Math.cos(angle);
+            this.vy = this.vy - 2 * dot * Math.sin(angle);
+            const minSpeed = 0.5;
+            if (Math.abs(this.vx) < minSpeed) {
+              this.vx = minSpeed * Math.sign(this.vx);
+            }
+            if (Math.abs(this.vy) < minSpeed) {
+              this.vy = minSpeed * Math.sign(this.vy);
+            }
+          }
+        },
+        changeColor() {
+          this.colorOverlay.alpha = Math.min(1, this.colorOverlay.alpha + 0.2);
+          if (this.colorOverlay.r > 0) this.colorOverlay.r -= 50;
+          if (this.colorOverlay.g < 255) this.colorOverlay.g += 50;
+          this.colorOverlay.r = Math.max(0, this.colorOverlay.r);
+          this.colorOverlay.g = Math.min(255, this.colorOverlay.g);
+          setTimeout(() => {
+            this.colorOverlay.alpha = Math.max(
+              0,
+              this.colorOverlay.alpha - 0.05
+            );
+          }, 100);
+          if (this.colorOverlay.g === 255) {
+            levelUpNotification.style.display = "block";
+            setTimeout(() => {
+              levelUpNotification.style.display = "none";
+            }, 3000);
+          }
+        },
+      };
+
+      // Lớp Rocket
+      class Rocket {
+        constructor(x, y, directionX, directionY) {
+          this.x = x;
+          this.y = y;
+          this.directionX = directionX;
+          this.directionY = directionY;
+          this.baseSpeed = 3;
+          this.width = 10;
+          this.height = 20;
+          this.vx = this.directionX * this.baseSpeed;
+          this.vy = this.directionY * this.baseSpeed;
+        }
+        calculateSpeed() {
+          const dx = this.x - earth.x,
+            dy = this.y - earth.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          const minSpeed = 0.3,
+            maxDistance = 800;
+          return Math.max(
+            minSpeed,
+            this.baseSpeed * (1 - distance / maxDistance)
+          );
+        }
+        move() {
+          const speed = this.calculateSpeed();
+          this.vx = this.directionX * speed * 0.8;
+          this.vy = this.directionY * speed * 0.8;
+          this.x += this.vx;
+          this.y += this.vy;
+        }
+        draw(ctx) {
+          const angle = Math.atan2(this.vy, this.vx);
+          ctx.save();
+          ctx.translate(this.x, this.y);
+          ctx.rotate(angle);
+          ctx.fillStyle = "white";
+          ctx.fillRect(0, -this.height / 2, this.width, this.height);
+          ctx.beginPath();
+          ctx.moveTo(this.width, -this.height / 2);
+          ctx.lineTo(this.width, this.height / 2);
+          ctx.lineTo(this.width + this.width / 2, 0);
+          ctx.closePath();
+          ctx.fillStyle = "red";
+          ctx.fill();
+          ctx.fillStyle = "blue";
+          ctx.beginPath();
+          ctx.arc(this.width / 2, 0, this.height / 8, 0, Math.PI * 2);
+          ctx.fill();
+          const flameGradient = ctx.createLinearGradient(
+            -this.width / 2,
+            0,
+            -this.width * 2,
+            0
+          );
+          flameGradient.addColorStop(0, "yellow");
+          flameGradient.addColorStop(0.5, "orange");
+          flameGradient.addColorStop(1, "red");
+          ctx.fillStyle = flameGradient;
+          ctx.beginPath();
+          ctx.moveTo(-this.width / 2, -this.height / 4);
+          ctx.lineTo(-this.width * 2, 0);
+          ctx.lineTo(-this.width / 2, this.height / 4);
+          ctx.closePath();
+          ctx.fill();
+          ctx.fillStyle = "gray";
+          ctx.beginPath();
+          ctx.moveTo(0, -this.height / 2);
+          ctx.lineTo(-this.width / 2, -this.height / 4);
+          ctx.lineTo(0, 0);
+          ctx.closePath();
+          ctx.fill();
+          ctx.beginPath();
+          ctx.moveTo(0, this.height / 2);
+          ctx.lineTo(-this.width / 2, this.height / 4);
+          ctx.lineTo(0, 0);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+        }
+        hasReachedTarget() {
+          if (
+            this.x < -this.width ||
+            this.x > canvas.width + this.width ||
+            this.y < -this.height ||
+            this.y > canvas.height + this.height
+          ) {
+            return true;
+          }
+          const dx = this.x - mars.x,
+            dy = this.y - mars.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          return distance < mars.radius;
+        }
+      }
+
+      const rockets = [];
+      let isDragging = false,
+        dragStart = null,
+        dragEnd = null;
+
+      function drawScore() {
+        ctx.fillStyle = "white";
+        ctx.font = "20px Arial";
+        ctx.fillText(`Score: ${score}`, 10, 30);
+      }
+
+      // Hàm hiển thị icon tên lửa thay vì số
+      function drawRemainingRockets() {
+        const remaining = maxRockets - rocketsFired;
+        // Sử dụng font lớn để hiển thị emoji
+        ctx.font = "30px Arial";
+        // Vẽ ở góc trái dưới (có thể điều chỉnh vị trí)
+        const startX = 10;
+        const startY = 100;
+        for (let i = 0; i < remaining; i++) {
+          ctx.fillText("🚀", startX + i * 40, startY);
+        }
+      }
+
+      function drawDragLine() {
+        if (dragStart && dragEnd) {
+          ctx.beginPath();
+          ctx.moveTo(dragStart.x, dragStart.y);
+          ctx.lineTo(dragEnd.x, dragEnd.y);
+          ctx.strokeStyle = "red";
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          ctx.closePath();
+        }
+      }
+
+      // Hàm cập nhật chính – update() luôn chạy
+      // Hàm cập nhật chính – update() luôn chạy
+      function update() {
+        requestAnimationFrame(update);
         if (!gameRunning) return;
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        // Vẽ nền màn 2 với hình ảnh mới
-        ctx.drawImage(backgroundImageLevel2, 0, 0, canvas.width, canvas.height);
 
-        // Hiển thị thông báo qua màn 2
-        if (level2Score >= 5) {
-          level2Notification.style.display = "block";
-          setTimeout(() => {
-            level2Notification.style.display = "none";
-          }, 3000);
+        // Vẽ nền luôn là backgroundImage (hình nền màn 1)
+        ctx.drawImage(backgroundImage, 0, 0, canvas.width, canvas.height);
+
+        mars.move();
+        mars.draw();
+        earth.draw();
+        drawScore();
+        drawDragLine();
+
+        rockets.forEach((rocket, index) => {
+          rocket.move();
+          rocket.draw(ctx);
+          if (rocket.hasReachedTarget()) {
+            rockets.splice(index, 1);
+            const dx = rocket.x - mars.x,
+              dy = rocket.y - mars.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            if (distance < mars.radius) {
+              score += 1;
+              mars.changeColor();
+            }
+          }
+        });
+
+        // Điều kiện để chuyển sang màn 2
+        if (score >= 7 && level === 1) {
+          level = 2;
+          resetGame(); // Đảm bảo reset lại trạng thái game sau khi qua màn
+          levelUpNotification.style.display = "none"; // Ẩn thông báo qua màn
+          continueLevelNotification.style.display = "block"; // Hiển thị thông báo yêu cầu xác nhận tiếp tục
         }
 
-        // Logic game level 2 ở đây...
-        // Bạn có thể thêm các đối tượng, sự kiện, và chuyển động khác cho màn 2
+        // Kiểm tra kết thúc game nếu hết tên lửa
+        if (rocketsFired >= maxRockets && mars.colorOverlay.g !== 255) {
+          gameOverNotification.style.display = "block";
+        }
+
+        drawRemainingRockets();
       }
 
-      // Khởi tạo canvas và bắt đầu game level 2
-      function initLevel2() {
+      function initGame() {
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
-        updateLevel2();
+        earth.x = 150;
+        earth.y = canvas.height - 150;
+        mars.x = canvas.width - 150;
+        mars.y = 150;
       }
 
-      // Bắt đầu game level 2 ngay khi trang được tải
-      initLevel2();
-      gameRunning = true;
+      function resetGame() {
+        score = 0;
+        level = 1;
+        rocketsFired = 0;
+        rockets.length = 0;
+        mars.colorOverlay = { r: 255, g: 0, b: 0, alpha: 0 };
+      }
+
+      canvas.addEventListener("mousedown", (e) => {
+        const rect = canvas.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        const dist = Math.sqrt(
+          (mouseX - earth.x) ** 2 + (mouseY - earth.y) ** 2
+        );
+        if (dist <= earth.radius && rocketsFired < maxRockets) {
+          isDragging = true;
+          dragStart = { x: earth.x, y: earth.y };
+          dragEnd = { x: mouseX, y: mouseY };
+        }
+      });
+      canvas.addEventListener("mousemove", (e) => {
+        if (isDragging) {
+          const rect = canvas.getBoundingClientRect();
+          dragEnd = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+        }
+      });
+      canvas.addEventListener("mouseup", () => {
+        if (isDragging && dragEnd && rocketsFired < maxRockets) {
+          const dx = dragStart.x - dragEnd.x,
+            dy = dragStart.y - dragEnd.y;
+          const dist = Math.sqrt(dx * dx + dy * dy);
+          if (dist > 5) {
+            const dirX = dx / dist,
+              dirY = dy / dist;
+            rockets.push(new Rocket(earth.x, earth.y, dirX, dirY));
+            rocketsFired += 1;
+          }
+          isDragging = false;
+          dragStart = null;
+          dragEnd = null;
+        }
+      });
+      window.addEventListener("resize", () => {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+      });
+
+      // Các nút Start, Retry, Exit
+      startButton.addEventListener("click", () => {
+        startScreen.style.display = "none";
+        canvas.style.display = "block";
+        initGame();
+        resetGame();
+        gameRunning = true;
+      });
+      retryButton.addEventListener("click", () => {
+        gameOverNotification.style.display = "none";
+        resetGame();
+        initGame();
+        gameRunning = true;
+      });
+      continueButton.addEventListener("click", () => {
+        console.log("Nút Tiếp tục đã được nhấn!"); // Kiểm tra trong console
+        continueLevelNotification.style.display = "none"; // Ẩn thông báo
+        gameRunning = false; // Dừng game hiện tại
+
+        // Chuyển đến trang game level 2
+        window.location.href = "game_level2.html"; // Điều hướng đến màn 2
+      });
+      exitButtonLevel2.addEventListener("click", () => {
+        gameRunning = false; // Dừng game
+        continueLevelNotification.style.display = "none"; // Ẩn thông báo
+        startScreen.style.display = "flex"; // Hiển thị lại màn hình bắt đầu
+      });
+
+      exitButton.addEventListener("click", () => {
+        gameOverNotification.style.display = "none";
+        canvas.style.display = "none";
+        startScreen.style.display = "flex";
+        gameRunning = false;
+        resetGame();
+      });
+
+      // Bắt đầu vòng lặp update khi trang load
+      update();
     </script>
   </body>
 </html>
