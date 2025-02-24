@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Rocket Solar Game - Level 2</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        padding: 0;
+        overflow: hidden;
+      }
+      /* Canvas */
+      #gameCanvas {
+        position: fixed;
+        top: 0;
+        left: 0;
+        background: #333;
+        width: 100vw;
+        height: 100vh;
+      }
+      /* Notifications */
+      .notification {
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        padding: 20px;
+        background-color: rgba(0, 0, 0, 0.7);
+        color: white;
+        font-size: 30px;
+        font-weight: bold;
+        border-radius: 10px;
+        display: none;
+        z-index: 9999;
+        text-align: center;
+      }
+    </style>
+  </head>
+  <body>
+    <!-- Canvas game level 2 -->
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Màn hình thông báo -->
+    <div class="notification" id="level2Notification">
+      Bạn đã qua màn 2! Tiến hành thử thách mới!
+    </div>
+
+    <script>
+      // Biến và setup
+      const canvas = document.getElementById("gameCanvas");
+      const ctx = canvas.getContext("2d");
+      const level2Notification = document.getElementById("level2Notification");
+
+      let level2Score = 0;
+      let gameRunning = false;
+
+      // Khởi tạo background hình ảnh mới cho màn 2
+      const backgroundImageLevel2 = new Image();
+      backgroundImageLevel2.src = "https://i.postimg.cc/BQtb5jd4/back.png"; // Đường dẫn đến hình ảnh mới
+
+      // Cập nhật game level 2
+      function updateLevel2() {
+        requestAnimationFrame(updateLevel2);
+        if (!gameRunning) return;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        // Vẽ nền màn 2 với hình ảnh mới
+        ctx.drawImage(backgroundImageLevel2, 0, 0, canvas.width, canvas.height);
+
+        // Hiển thị thông báo qua màn 2
+        if (level2Score >= 5) {
+          level2Notification.style.display = "block";
+          setTimeout(() => {
+            level2Notification.style.display = "none";
+          }, 3000);
+        }
+
+        // Logic game level 2 ở đây...
+        // Bạn có thể thêm các đối tượng, sự kiện, và chuyển động khác cho màn 2
+      }
+
+      // Khởi tạo canvas và bắt đầu game level 2
+      function initLevel2() {
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        updateLevel2();
+      }
+
+      // Bắt đầu game level 2 ngay khi trang được tải
+      initLevel2();
+      gameRunning = true;
+    </script>
+  </body>
+</html>

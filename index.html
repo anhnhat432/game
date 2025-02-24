@@ -104,7 +104,6 @@
     </div>
     <!-- Game Canvas -->
     <canvas id="gameCanvas"></canvas>
-    <button id="continueButton" style="display: none">Tiếp tục</button>
     <!-- Notifications -->
     <div class="notification" id="levelUpNotification">Bạn đã qua màn 1!</div>
     <div class="notification" id="gameOverNotification">
@@ -114,12 +113,167 @@
         <button id="exitButton">Thoát</button>
       </div>
     </div>
+    <!-- Đảm bảo chỉ có một nút "Tiếp tục" -->
+    <div
+      class="notification"
+      id="continueLevelNotification"
+      style="display: none"
+    >
+      <p>Bạn đã qua màn 1! Bạn có muốn tiếp tục qua màn 2 không?</p>
+      <button id="continueButton">Tiếp tục</button>
+      <!-- Chỉ khai báo một lần -->
+      <button id="exitButtonLevel2">Thoát</button>
+    </div>
 
     <script>
+      class Game {
+        constructor(canvas, ctx) {
+          this.canvas = canvas;
+          this.ctx = ctx;
+          this.score = 0;
+          this.level = 1;
+          this.rocketsFired = 0;
+          this.maxRockets = 10;
+          this.rockets = [];
+          this.isGameRunning = false;
+
+          // Định nghĩa các đối tượng Earth, Mars và các đối tượng khác
+          this.earth = {
+            x: 150,
+            y: canvas.height - 150,
+            radius: 120,
+            image: new Image(),
+          };
+          this.earth.image.src =
+            "https://i.postimg.cc/vHdpQfXm/Pngtree-earth-globe-vector-design-19771842.png";
+
+          this.mars = {
+            x: canvas.width - 150,
+            y: 150,
+            radius: 80,
+            vx: 0.5,
+            vy: 0.3,
+            colorOverlay: { r: 255, g: 0, b: 0, alpha: 0 },
+            image: new Image(),
+          };
+          this.mars.image.src =
+            "https://i.postimg.cc/MTCgfQSd/Pngtree-night-sky-planet-mars-universe-4523018.png";
+        }
+
+        resetGame() {
+          this.score = 0;
+          this.level = 1;
+          this.rocketsFired = 0;
+          this.rockets = [];
+          this.mars.colorOverlay = { r: 255, g: 0, b: 0, alpha: 0 };
+        }
+
+        update() {
+          if (!this.isGameRunning) return;
+          this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+          // Vẽ nền
+          this.ctx.fillStyle = "#222"; // Hoặc vẽ hình nền khác
+          this.ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+
+          // Vẽ Earth và Mars
+          this.drawEarth();
+          this.drawMars();
+
+          // Logic game: Di chuyển tên lửa, kiểm tra va chạm, v.v.
+          this.rockets.forEach((rocket, index) => {
+            rocket.move();
+            rocket.draw(this.ctx);
+            if (rocket.hasReachedTarget()) {
+              this.rockets.splice(index, 1);
+              const dx = rocket.x - this.mars.x;
+              const dy = rocket.y - this.mars.y;
+              const distance = Math.sqrt(dx * dx + dy * dy);
+              if (distance < this.mars.radius) {
+                this.score += 1;
+                this.mars.changeColor();
+              }
+            }
+          });
+
+          // Kiểm tra điều kiện thắng màn
+          if (this.score >= 7 && this.level === 1) {
+            this.level = 2;
+            this.resetGame(); // Đảm bảo reset lại trạng thái game
+            levelUpNotification.style.display = "none"; // Ẩn thông báo qua màn
+            continueLevelNotification.style.display = "block"; // Hiển thị thông báo yêu cầu xác nhận tiếp tục
+          }
+        }
+
+        drawEarth() {
+          this.ctx.save();
+          this.ctx.beginPath();
+          this.ctx.arc(
+            this.earth.x,
+            this.earth.y,
+            this.earth.radius,
+            0,
+            Math.PI * 2
+          );
+          this.ctx.closePath();
+          this.ctx.clip();
+          this.ctx.drawImage(
+            this.earth.image,
+            this.earth.x - this.earth.radius,
+            this.earth.y - this.earth.radius,
+            this.earth.radius * 2,
+            this.earth.radius * 2
+          );
+          this.ctx.restore();
+        }
+
+        drawMars() {
+          this.ctx.save();
+          this.ctx.beginPath();
+          this.ctx.arc(
+            this.mars.x,
+            this.mars.y,
+            this.mars.radius,
+            0,
+            Math.PI * 2
+          );
+          this.ctx.closePath();
+          this.ctx.clip();
+          this.ctx.drawImage(
+            this.mars.image,
+            this.mars.x - this.mars.radius,
+            this.mars.y - this.mars.radius,
+            this.mars.radius * 2,
+            this.mars.radius * 2
+          );
+          if (this.mars.colorOverlay.alpha > 0) {
+            this.ctx.beginPath();
+            this.ctx.arc(
+              this.mars.x,
+              this.mars.y,
+              this.mars.radius,
+              0,
+              Math.PI * 2
+            );
+            this.ctx.closePath();
+            this.ctx.globalCompositeOperation = "source-atop";
+            this.ctx.fillStyle = `rgba(${this.mars.colorOverlay.r}, ${this.mars.colorOverlay.g}, ${this.mars.colorOverlay.b}, ${this.mars.colorOverlay.alpha})`;
+            this.ctx.fill();
+          }
+          this.ctx.restore();
+        }
+      }
+
+      const continueLevelNotification = document.getElementById(
+        "continueLevelNotification"
+      );
+      const continueButton = document.getElementById("continueButton");
+      const exitButtonLevel2 = document.getElementById("exitButtonLevel2");
       // Biến toàn cục
       let gameRunning = false; // Quản lý trạng thái game
       const canvas = document.getElementById("gameCanvas");
       const ctx = canvas.getContext("2d");
+      const game = new Game(canvas, ctx);
       let score = 0,
         level = 1,
         rocketsFired = 0;
@@ -147,7 +301,7 @@
       const backgroundImage = new Image();
       backgroundImage.src = "https://i.postimg.cc/BQtb5jd4/back.png";
       const backgroundImageLevel2 = new Image();
-      backgroundImageLevel2.src = "https://i.postimg.cc/d0HRcfsT/space.png";
+      backgroundImageLevel2.src = "https://i.postimg.cc/BQtb5jd4/back.png";
       const earthImage = new Image();
       earthImage.src =
         "https://i.postimg.cc/vHdpQfXm/Pngtree-earth-globe-vector-design-19771842.png";
@@ -269,7 +423,7 @@
           this.y = y;
           this.directionX = directionX;
           this.directionY = directionY;
-          this.baseSpeed = 2;
+          this.baseSpeed = 3;
           this.width = 10;
           this.height = 20;
           this.vx = this.directionX * this.baseSpeed;
@@ -430,10 +584,8 @@
         if (score >= 7 && level === 1) {
           level = 2;
           resetGame(); // Đảm bảo reset lại trạng thái game sau khi qua màn
-          levelUpNotification.style.display = "block"; // Hiển thị thông báo khi qua màn
-          setTimeout(() => {
-            levelUpNotification.style.display = "none"; // Ẩn thông báo sau 3 giây
-          }, 3000);
+          levelUpNotification.style.display = "none"; // Ẩn thông báo qua màn
+          continueLevelNotification.style.display = "block"; // Hiển thị thông báo yêu cầu xác nhận tiếp tục
         }
 
         // Kiểm tra kết thúc game nếu hết tên lửa
@@ -515,6 +667,20 @@
         initGame();
         gameRunning = true;
       });
+      continueButton.addEventListener("click", () => {
+        console.log("Nút Tiếp tục đã được nhấn!"); // Kiểm tra trong console
+        continueLevelNotification.style.display = "none"; // Ẩn thông báo
+        gameRunning = false; // Dừng game hiện tại
+
+        // Chuyển đến trang game level 2
+        window.location.href = "game_level2.html"; // Điều hướng đến màn 2
+      });
+      exitButtonLevel2.addEventListener("click", () => {
+        gameRunning = false; // Dừng game
+        continueLevelNotification.style.display = "none"; // Ẩn thông báo
+        startScreen.style.display = "flex"; // Hiển thị lại màn hình bắt đầu
+      });
+
       exitButton.addEventListener("click", () => {
         gameOverNotification.style.display = "none";
         canvas.style.display = "none";
