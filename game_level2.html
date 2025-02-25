@@ -120,20 +120,84 @@
     </div>
     <script>
       // Asteroid class
+      // Asteroid class
+      // Asteroid class
+      // Asteroid class
       class Asteroid {
         constructor(x, y, radius) {
           this.x = x;
           this.y = y;
-          this.radius = radius;
-          this.color = "gray";
+          this.radius = radius * 0.8; // Giảm kích thước thiên thạch xuống 60% so với ban đầu
+          this.color = this.randomColor(); // Random color for each asteroid
+          this.rotation = Math.random() * Math.PI * 2; // Initial random rotation
+          this.rotationSpeed = Math.random() * 0.02 - 0.01; // Random rotation speed
+          this.texture = this.randomTexture(); // Random texture for the asteroid
+          this.vx = Math.random() * 0.2 - 0.1; // Tăng tốc độ theo trục X
+          this.vy = Math.random() * 0.2 - 0.1; // Tốc độ di chuyển chậm hơn (giảm tốc độ)
+        }
+
+        // Method to generate random colors for the asteroids
+        randomColor() {
+          const colors = [
+            "#B0B0B0",
+            "#A9A9A9",
+            "#808080",
+            "#696969",
+            "#C0C0C0",
+          ];
+          return colors[Math.floor(Math.random() * colors.length)];
+        }
+
+        // Method to generate random textures (simple gradient example)
+        randomTexture() {
+          const gradients = [
+            this.createGradient("#FF4500", "#FFD700"),
+            this.createGradient("#A9A9A9", "#808080"),
+            this.createGradient("#6A5ACD", "#8A2BE2"),
+          ];
+          return gradients[Math.floor(Math.random() * gradients.length)];
+        }
+
+        // Function to create a radial gradient for asteroid texture
+        createGradient(color1, color2) {
+          const gradient = ctx.createRadialGradient(
+            this.x,
+            this.y,
+            0,
+            this.x,
+            this.y,
+            this.radius
+          );
+          gradient.addColorStop(0, color1);
+          gradient.addColorStop(1, color2);
+          return gradient;
         }
 
         draw(ctx) {
+          ctx.save();
+          ctx.translate(this.x, this.y);
+          ctx.rotate(this.rotation);
+
+          // Fill the asteroid with its texture
           ctx.beginPath();
-          ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
-          ctx.fillStyle = this.color;
+          ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+          ctx.fillStyle = this.texture;
           ctx.fill();
           ctx.closePath();
+
+          // Add a simple glowing effect around the asteroid
+          ctx.shadowColor = this.color;
+          ctx.shadowBlur = 10;
+          ctx.restore();
+
+          // Update rotation
+          this.rotation += this.rotationSpeed;
+        }
+
+        // Cập nhật vị trí của thiên thạch
+        updatePosition() {
+          this.x += this.vx; // Update x position based on velocity
+          this.y += this.vy; // Update y position based on velocity
         }
 
         checkCollision(rocket) {
@@ -189,6 +253,8 @@
             new Asteroid(600, 700, 50),
             new Asteroid(800, 200, 20),
             new Asteroid(1000, 600, 35),
+            new Asteroid(1200, 800, 45), // Thiên thạch thứ 6
+            new Asteroid(1400, 300, 25),
           ];
         }
 
@@ -232,6 +298,8 @@
 
             // Check for collision with asteroids
             this.asteroids.forEach((asteroid) => {
+              asteroid.updatePosition(); // Cập nhật vị trí của thiên thạch
+              asteroid.draw(ctx);
               if (asteroid.checkCollision(rocket)) {
                 asteroid.explode();
                 this.rockets.splice(index, 1); // Remove rocket on collision
@@ -609,7 +677,10 @@
         drawDragLine();
 
         // Draw and check for collisions with asteroids
-        game.asteroids.forEach((asteroid) => asteroid.draw(ctx));
+        game.asteroids.forEach((asteroid) => {
+          asteroid.updatePosition(); // Cập nhật vị trí của thiên thạch
+          asteroid.draw(ctx); // Vẽ lại thiên thạch
+        });
 
         rockets.forEach((rocket, index) => {
           rocket.move();
@@ -747,8 +818,6 @@
         gameRunning = false;
         resetGame();
       });
-
-      // Bắt đầu vòng lặp update khi trang load
       update();
     </script>
   </body>
