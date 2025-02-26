@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <title>Rocket Solar Game - Level 2</title>
+    <title>Rocket Solar Game - Level 3</title>
     <style>
       html,
       body {
@@ -10,7 +10,6 @@
         padding: 0;
         overflow: hidden;
       }
-      /* Start screen */
       .start-screen {
         position: fixed;
         top: 0;
@@ -47,7 +46,6 @@
       .start-button:hover {
         background-color: #e68a00;
       }
-      /* Canvas */
       #gameCanvas {
         position: fixed;
         top: 0;
@@ -57,7 +55,6 @@
         height: 100vh;
         display: none;
       }
-      /* Notifications */
       .notification {
         position: fixed;
         top: 50%;
@@ -94,14 +91,14 @@
   <body>
     <!-- Start Screen -->
     <div class="start-screen" id="startScreen">
-      <h1>Game Level 2</h1>
-      <p>Chơi tiếp để khám phá thêm!</p>
+      <h1>Game Level 3</h1>
+      <p>Chơi tiếp để khám phá thêm thử thách!</p>
       <button class="start-button" id="startButton">Bắt đầu</button>
     </div>
     <!-- Canvas -->
     <canvas id="gameCanvas"></canvas>
     <!-- Notifications -->
-    <div class="notification" id="levelUpNotification">Bạn đã qua màn 2!</div>
+    <div class="notification" id="levelUpNotification">Bạn đã qua màn 3!</div>
     <div class="notification" id="gameOverNotification">
       <p>Game Over!</p>
       <div class="game-over-buttons">
@@ -114,10 +111,11 @@
       id="continueLevelNotification"
       style="display: none"
     >
-      <p>Bạn đã qua màn 2! Bạn có muốn tiếp tục qua màn 3 không?</p>
+      <p>Bạn đã qua màn 3! Bạn có muốn tiếp tục qua màn 4 không?</p>
       <button id="continueButton">Tiếp tục</button>
-      <button id="exitButtonLevel2">Thoát</button>
+      <button id="exitButtonLevel3">Thoát</button>
     </div>
+
     <script>
       // Asteroid class
       // Asteroid class
@@ -218,7 +216,7 @@
           this.canvas = canvas;
           this.ctx = ctx;
           this.score = 0;
-          this.level = 1;
+          this.level = 3;
           this.rocketsFired = 0;
           this.maxRockets = 10;
           this.rockets = [];
@@ -260,7 +258,7 @@
 
         resetGame() {
           this.score = 0;
-          this.level = 1;
+          this.level = 3;
           this.rocketsFired = 0;
           this.rockets = [];
           this.mars.colorOverlay = { r: 255, g: 0, b: 0, alpha: 0 };
@@ -308,8 +306,8 @@
           });
 
           // Kiểm tra điều kiện thắng màn
-          if (this.score >= 7 && this.level === 1) {
-            this.level = 2;
+          if (this.score >= 7 && this.level === 3) {
+            this.level = 4;
             this.resetGame(); // Đảm bảo reset lại trạng thái game
             levelUpNotification.style.display = "none"; // Ẩn thông báo qua màn
             continueLevelNotification.style.display = "block"; // Hiển thị thông báo yêu cầu xác nhận tiếp tục
@@ -379,7 +377,7 @@
         "continueLevelNotification"
       );
       const continueButton = document.getElementById("continueButton");
-      const exitButtonLevel2 = document.getElementById("exitButtonLevel2");
+      const exitButtonLevel3 = document.getElementById("exitButtonLevel3");
       // Biến toàn cục
       let gameRunning = false; // Quản lý trạng thái game
       const canvas = document.getElementById("gameCanvas");
@@ -411,8 +409,8 @@
       // Hình ảnh game
       const backgroundImage = new Image();
       backgroundImage.src = "https://i.postimg.cc/BQtb5jd4/back.png";
-      const backgroundImageLevel2 = new Image();
-      backgroundImageLevel2.src = "https://i.postimg.cc/BQtb5jd4/back.png";
+      const backgroundImageLevel3 = new Image();
+      backgroundImageLevel3.src = "https://i.postimg.cc/BQtb5jd4/back.png";
       const earthImage = new Image();
       earthImage.src =
         "https://i.postimg.cc/vHdpQfXm/Pngtree-earth-globe-vector-design-19771842.png";
@@ -707,7 +705,7 @@
 
         // Điều kiện để chuyển sang màn 2
         if (score >= 7 && level === 1) {
-          level = 2;
+          level = 3;
           resetGame(); // Đảm bảo reset lại trạng thái game sau khi qua màn
           levelUpNotification.style.display = "none"; // Ẩn thông báo qua màn
           continueLevelNotification.style.display = "block"; // Hiển thị thông báo yêu cầu xác nhận tiếp tục
@@ -796,15 +794,15 @@
         console.log("Nút Tiếp tục đã được nhấn!"); // Kiểm tra trong console
         continueLevelNotification.style.display = "none"; // Ẩn thông báo
         gameRunning = true; // Dừng game hiện tại
-        game.level = 3;
+        game.level = 4;
         game.score = 0;
         game.rocketsFired = 0;
         game.rockets = []; // Clear existing rockets
         game.mars.colorOverlay = { r: 255, g: 0, b: 0, alpha: 0 }; // Reset Mars' color overlay
         game.isGameRunning = true;
-        window.location.href = "game_level3.html"; // Điều hướng đến màn 2
+        window.location.href = "game_level4.html"; // Điều hướng đến màn 2
       });
-      exitButtonLevel2.addEventListener("click", () => {
+      exitButtonLevel3.addEventListener("click", () => {
         gameRunning = false; // Dừng game
         continueLevelNotification.style.display = "none"; // Ẩn thông báo
         startScreen.style.display = "flex"; // Hiển thị lại màn hình bắt đầu
